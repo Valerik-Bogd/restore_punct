@@ -1,2 +1,7 @@
+# massive data and weights
 Diploma_Data/
+data/
+models/
 __pycache__/
+*.pth
+.ipynb_checkpoints/
