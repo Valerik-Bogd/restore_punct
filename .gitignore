@@ -2,6 +2,7 @@
 Diploma_Data/
 data/
 models/
+bert-punctuation-correction/
 __pycache__/
 *.pth
 .ipynb_checkpoints/
