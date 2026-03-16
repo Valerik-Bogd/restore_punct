@@ -6,3 +6,6 @@ bert-punctuation-correction/
 __pycache__/
 *.pth
 .ipynb_checkpoints/
+
+# secrets
+yandex_secrets.json
