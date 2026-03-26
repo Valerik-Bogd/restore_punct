@@ -67,21 +67,62 @@ class WeightedTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
+# class FocalLossTrainer(Trainer):
+#     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+#         labels = inputs.pop("labels")
+#         outputs = model(**inputs)
+
+#         if hasattr(outputs, "logits"):
+#             logits = outputs.logits
+#         elif isinstance(outputs, (tuple, list)):
+#             # Common pattern: (loss, logits) or (logits,)
+#             logits = outputs[-1]
+#         else:
+#             logits = outputs
+
+#         num_labels = getattr(model, "num_labels", None)
+#         if num_labels is None:
+#             num_labels = logits.shape[-1]
+
+#         logits = logits.view(-1, num_labels)
+#         labels = labels.view(-1)
+
+#         ce_loss = torch.nn.functional.cross_entropy(
+#             logits, labels, reduction="none", ignore_index=-100
+#         )
+#         pt = torch.exp(-ce_loss)
+#         focal_loss = (1 - pt) ** 2.0 * ce_loss  # standard Gamma=2.0
+        
+#         focal_loss = focal_loss.mean()
+        
+#         return (focal_loss, outputs) if return_outputs else focal_loss
+    
 class FocalLossTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         labels = inputs.get("labels")
         outputs = model(**inputs)
-        logits = outputs.get("logits")
-        
-        logits = logits.view(-1, self.model.config.num_labels)
-        labels = labels.view(-1)
-        
-        ce_loss = torch.nn.functional.cross_entropy(logits, labels, reduction='none', ignore_index=-100)
+        if hasattr(outputs, "logits"):
+            logits = outputs.logits
+        elif isinstance(outputs, (tuple, list)):
+            logits = outputs[1]
+        else:
+            logits = outputs
+
+        num_labels = logits.shape[-1]
+
+        logits_flat = logits.view(-1, num_labels)
+        labels_flat = labels.view(-1)
+
+        ce_loss = torch.nn.functional.cross_entropy(
+            logits_flat, labels_flat, reduction="none", ignore_index=-100
+        )
         pt = torch.exp(-ce_loss)
         focal_loss = (1 - pt) ** 2.0 * ce_loss  # standard Gamma=2.0
         
-        return (focal_loss.mean(), outputs) if return_outputs else focal_loss.mean()
-    
+        loss = focal_loss.mean()
+        
+        return (loss, outputs) if return_outputs else loss
+
 
 class CRFTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
