@@ -1,8 +1,6 @@
-"""Trainer factory + top-level ``train_run`` entry point.
-
-``train_run(cfg)`` performs: build model -> build datasets -> build trainer ->
-``trainer.train()`` -> persist artifacts. The returned model object is handy
-for a quick inference demo inside the template notebook.
+"""
+train_run(cfg): build model -> build datasets -> build trainer ->
+trainer.train()`` -> artifacts
 """
 
 from __future__ import annotations
@@ -54,17 +52,8 @@ def _compute_metrics(p):
 
 
 def _focal_alpha_tensor() -> torch.Tensor:
-    """Build per-class weights and normalize them to mean 1.
-
-    - Strict coverage: every PUNCT_WEIGHTS key must map to a real label, and
-      every label must have an explicit entry. Silent drift (old bug) is out.
-    - Mean normalization: per-token loss magnitude stays comparable to plain
-      CE. Previously max alpha=15 was used multiplicatively on top of .mean()
-      reduction, which inflated the effective gradient ~5-10x and caused the
-      focal baselines to over-predict rare classes and crash O-class F1.
-
-      After normalization sum(alpha)=NUM_LABELS and mean(alpha)=1, so relative
-      class emphasis is preserved but the overall loss scale matches CE.
+    """
+    Build per-class weights and normalize to mean 1.
     """
     missing_in_weights = set(label2id) - set(PUNCT_WEIGHTS)
     extra_in_weights = set(PUNCT_WEIGHTS) - set(label2id)
@@ -141,7 +130,6 @@ def build_trainer(cfg: "RunConfig", model, train_ds, val_ds, tokenizer):
 
 
 def train_run(cfg: "RunConfig"):
-    """Train a model per cfg and save artifacts to ``models/<cfg.name>/``."""
     tokenizer = get_tokenizer()
 
     print(f"[{cfg.name}] architecture={cfg.architecture} loss={cfg.resolved_loss()} "
@@ -152,7 +140,6 @@ def train_run(cfg: "RunConfig"):
         effective = 0.0 if cfg.architecture == BERT_CRF else cfg.o_mask_prob
         print(f"[{cfg.name}] O-masking p={cfg.o_mask_prob} (effective={effective})")
 
-    # CRF-only extras: class-weighted auxiliary loss + empirical transition init.
     crf_alpha = None
     crf_aux_mode = "none"
     if cfg.architecture == BERT_CRF and cfg.crf_aux_loss != "none":

@@ -1,11 +1,4 @@
 """Merge ``models_db.json`` + ``yandex_db.json`` into ``master_summary.xlsx``.
-
-Idempotent: always overwrites the master file from whatever the two JSON
-stores currently hold. Safe to re-run after any experiment.
-
-Output sheets:
-- ``Summary``          -> (Source, Run) x (Test, {F1, Precision, Recall})
-- ``Per-Class Details`` -> (Source, Run, Punctuation) x (Test, {F1, P, R, Support})
 """
 
 from __future__ import annotations
@@ -29,7 +22,6 @@ def _load_db(path: str) -> dict:
 
 
 def _iter_tests(entry: dict):
-    """Yield (test_name, report_dict) for every benchmark in a DB entry."""
     for k, v in entry.items():
         if k in _RESERVED_TOP:
             continue
@@ -90,7 +82,6 @@ def rebuild_master_excel(out_path: str = MASTER_XLSX_PATH) -> str:
         print("Nothing to aggregate yet: both JSON stores are empty.")
         return out_path
 
-    # union of test names across all entries, stable order preferred
     preferred = ["General_Test", "GERA_Test", "LORuGEC_Test"]
     seen_tests: list[str] = []
     def _collect(db):

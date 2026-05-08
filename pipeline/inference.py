@@ -1,8 +1,5 @@
-"""Demo-time helpers for restoring punctuation on raw strings.
-
-Not used during benchmark scoring (see `evaluation.py` for that). These live
-here so the template notebook can do a qualitative smoke-test after training
-without duplicating model-loading code.
+"""
+Demo helpers for raw strings.
 """
 
 from __future__ import annotations
@@ -26,10 +23,6 @@ _WORD_RE = re.compile(r"[\w]+(?:-[\w]+)*")
 
 
 def load_for_inference(cfg: "RunConfig"):
-    """Load a saved model + tokenizer for the given run config. Returns (model, tokenizer).
-
-    Use this from the template notebook's demo cell after training.
-    """
     run_dir = os.path.join(MODEL_DIR, cfg.name)
     if not os.path.exists(run_dir):
         raise FileNotFoundError(f"no saved model at {run_dir}")
@@ -40,8 +33,8 @@ def load_for_inference(cfg: "RunConfig"):
 
 
 def restore_punctuation(model, tokenizer, text: str, max_len: int = MAX_LEN) -> str:
-    """Feed a raw unpunctuated string through a trained model and stitch the
-    predicted punctuation back in after each word.
+    """
+    Feed a raw unpunctuated string and stitch punctuation back
     """
     device = next(model.parameters()).device
     words = [m.group() for m in _WORD_RE.finditer(text)]

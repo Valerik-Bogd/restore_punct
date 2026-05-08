@@ -1,11 +1,7 @@
-"""Model factory for the three architectures used in the pipeline.
-
+"""
 - "bert"      -> HuggingFace ``AutoModelForTokenClassification`` (save_pretrained / from_pretrained)
 - "bert+crf"  -> custom head, state_dict serialized as ``pytorch_model.bin``
 - "bert+lstm" -> custom head, state_dict serialized as ``pytorch_model.bin``
-
-The build_model / save_model_artifacts / load_for_inference trio is the only
-place that knows about save-format differences.
 """
 
 from __future__ import annotations
@@ -22,14 +18,10 @@ from .labels import NUM_LABELS, id2label, label2id
 
 
 def _load_with_local_fallback(loader_fn, *args, **kwargs):
-    """Resilient wrapper around HF ``from_pretrained``.
-
-    First try normally (online + cache). If anything goes wrong (DNS drop,
-    proxy hiccup, the recent transformers _patch_mistral_regex() bug that
-    pings the Hub even for non-Mistral tokenizers, etc.), retry once with
-    ``local_files_only=True``. If that also fails, re-raise the ORIGINAL
-    error so the user sees the real cause (e.g. bad repo name, not "cache
-    miss").
+    """
+    try normally (online + cache)
+    or retry once with ``local_files_only=True``
+    or raise error
     """
     try:
         return loader_fn(*args, **kwargs)
@@ -44,7 +36,7 @@ def _load_with_local_fallback(loader_fn, *args, **kwargs):
 
 try:
     from torchcrf import CRF
-except ImportError:  # allow imports on machines without torchcrf installed
+except ImportError:
     CRF = None
 
 
@@ -60,16 +52,9 @@ _VALID_AUX_MODES = ("none", "ce_weighted", "focal")
 
 
 class BertCRFForTokenClassification(nn.Module):
-    """BERT + linear head + linear-chain CRF, optionally with a weighted-CE or
-    focal auxiliary loss on the emissions to counter class imbalance.
-
-    CRF log-likelihood is sequence-level and intrinsically blind to per-class
-    frequency. The auxiliary term restores that gradient signal where needed:
-
-        loss = crf_nll + aux_weight * aux(emissions, labels)
-
-    where ``aux`` honors ``_alpha`` (PUNCT_WEIGHTS-style per-class weights) and
-    ``-100`` ignore-labels. Set ``aux_mode="none"`` for pure-CRF baseline.
+    """
+    BERT + linear head + linear-chain CRF, 
+    optionally + weighted-CE or focal aux loss on the emissions
     """
 
     def __init__(
@@ -107,7 +92,7 @@ class BertCRFForTokenClassification(nn.Module):
         log_start: torch.Tensor | None = None,
         log_end: torch.Tensor | None = None,
     ) -> None:
-        """Overwrite torchcrf's random transition init with an empirical prior."""
+        """Overwrite torchcrf's random transition init with empirical."""
         with torch.no_grad():
             self.crf.transitions.data.copy_(log_transitions.to(self.crf.transitions.device))
             if log_start is not None:
@@ -189,12 +174,9 @@ def build_model(
     crf_aux_gamma: float = 2.0,
     crf_alpha: torch.Tensor | None = None,
 ) -> nn.Module:
-    """Instantiate a model and optionally warm-start from a saved run.
-
+    """
     - ``"bert"``       -> ``AutoModelForTokenClassification`` (``save_pretrained`` / ``from_pretrained``)
     - ``"bert+crf"``   -> custom module, state_dict in ``pytorch_model.bin``.
-      CRF-only kwargs (``crf_aux_*``, ``crf_alpha``) configure the optional
-      auxiliary per-token loss; they are ignored for other architectures.
     - ``"bert+lstm"``  -> custom module, state_dict in ``pytorch_model.bin``.
     """
     if architecture not in _VALID_ARCH:
@@ -235,10 +217,8 @@ def build_model(
 
 
 def save_model_artifacts(model: nn.Module, tokenizer, run_name: str, architecture: str) -> str:
-    """Persist a trained model + tokenizer into ``models/<run_name>/``.
-
-    HF models go through ``save_pretrained``; CRF/LSTM models dump a
-    state_dict as ``pytorch_model.bin``. Returns the save directory.
+    """
+    model + tokenizer into ``models/<run_name>/``.
     """
     save_dir = os.path.join(MODEL_DIR, run_name)
     os.makedirs(save_dir, exist_ok=True)

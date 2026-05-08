@@ -1,7 +1,5 @@
-"""Dataset loading, label alignment, and train-set mixing.
-
-Hides the ``datasets.load_dataset + concatenate + tokenize`` dance so the
-training notebook never has to touch it.
+"""
+Dataset loading, label alignment, train-set mixing.
 """
 
 from __future__ import annotations
@@ -20,10 +18,8 @@ if TYPE_CHECKING:
 
 
 def align_labels_with_tokens(examples, tokenizer, max_len: int = MAX_LEN):
-    """Subword-aware label alignment.
-
-    First subword of a word keeps the word's label; all later subwords and
-    special tokens get -100 (ignored by the loss).
+    """
+    Subword label alignment.
     """
     tokenized_inputs = tokenizer(
         examples["tokens"],
@@ -63,11 +59,6 @@ def _concat_files(paths: list[str], split: str = "train") -> Dataset | None:
 
 
 def _load_replay(replay_files: list[dict]) -> Dataset | None:
-    """Each entry: {"path": str, "n": int, "seed": int (optional, default 42)}.
-
-    Loads, shuffles with the entry's seed, takes the first ``n`` rows, then
-    concatenates all replay parts into one dataset.
-    """
     if not replay_files:
         return None
 
@@ -83,10 +74,8 @@ def _load_replay(replay_files: list[dict]) -> Dataset | None:
 
 
 def build_training_dataset(cfg: "RunConfig", tokenizer) -> dict[str, Dataset]:
-    """Builds tokenized ``{"train": ..., "validation": ...}`` per the config.
-
-    Training set = concat(train_files) + replay_pool, shuffled with cfg.seed.
-    Validation set = concat(val_files), no shuffle.
+    """
+    Builds tokenized ``{"train": ..., "validation": ...}`` 
     """
     train_base = _concat_files(cfg.train_files, split="train")
     if train_base is None:
@@ -128,7 +117,7 @@ DEFAULT_BENCHMARKS: dict[str, str] = {
 
 
 def build_benchmark_datasets(cfg: "RunConfig", tokenizer) -> dict[str, Dataset]:
-    """Tokenize every benchmark. cfg.benchmarks overrides defaults if provided."""
+    """Tokenize every benchmark."""
     bench_paths = cfg.benchmarks or DEFAULT_BENCHMARKS
 
     def _tok(batch):
@@ -141,32 +130,13 @@ def build_benchmark_datasets(cfg: "RunConfig", tokenizer) -> dict[str, Dataset]:
     return out
 
 
-# --- Advanced utilities: CRF transition prior & O-masking collator ---------
-
-
 def compute_empirical_transitions(
     train_files: list[str],
     num_labels: int,
     smoothing: float = 1.0,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Count label-pair frequencies in raw training files and return log-priors.
-
-    Reads each file's ``ner_tags`` lists (no tokenizer needed), counts
-
-    - transitions: every consecutive ``(prev, next)`` pair,
-    - starts:      the first label of each sequence,
-    - ends:        the last label of each sequence,
-
-    applies add-``smoothing`` Laplace smoothing so zero counts don't become
-    ``-inf`` after taking the log, row-normalizes transitions to a valid
-    conditional distribution, then returns
-
-    - ``log_transitions`` : shape ``[K, K]``,  ``log P(next | prev)``
-    - ``log_start``       : shape ``[K]``,     ``log P(first label)``
-    - ``log_end``          : shape ``[K]``,     ``log P(last label)``
-
-    Suitable for copying straight into torchcrf's ``transitions`` /
-    ``start_transitions`` / ``end_transitions`` buffers.
+    """
+    Count label-pair frequencies in raw training files and return log-priors.
     """
     trans = torch.full((num_labels, num_labels), smoothing, dtype=torch.float64)
     start = torch.full((num_labels,), smoothing, dtype=torch.float64)
@@ -196,13 +166,8 @@ def compute_empirical_transitions(
 
 
 class OMaskingCollator:
-    """Wrapper around :class:`DataCollatorForTokenClassification` that
-    randomly drops a fraction ``p`` of O-label tokens from the loss by
-    relabeling them to ``-100`` per-batch.
-
-    Runs after the base collator has stacked + padded labels, so padding
-    positions (already ``-100``) are untouched. Re-randomized every batch,
-    so across an epoch every O token has a chance to contribute.
+    """
+    randomly drop a fraction of O-label tokens from the loss to ``-100`` 
     """
 
     def __init__(self, base_collator, o_label_id: int, p: float):
@@ -220,15 +185,14 @@ class OMaskingCollator:
         batch["labels"] = torch.where(o_mask & drop, torch.full_like(labels, -100), labels)
         return batch
 
-    # HF Trainer sometimes inspects collator attributes; delegate gracefully
+    # for HF Trainer
     def __getattr__(self, name):
         return getattr(self.base_collator, name)
 
 
 def make_data_collator(tokenizer, cfg: "RunConfig"):
-    """Return a collator honoring ``cfg.o_mask_prob``. For CRF architectures we
-    intentionally skip O-masking — the CRF forward maps ``-100`` back to 0
-    ("O") via ``safe_labels``, so masking would be a silent no-op.
+    """Return collator
+    for CRF architectures we skip O-masking
     """
     base = DataCollatorForTokenClassification(tokenizer)
     if cfg.o_mask_prob <= 0.0 or cfg.architecture == "bert+crf":

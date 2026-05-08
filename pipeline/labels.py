@@ -1,7 +1,3 @@
-"""Label map loader. Reads ``data/label_map.json`` once and exposes the usual
-helpers (``id2label``, ``label2id``, ``LABELS``, ``NUM_LABELS``).
-"""
-
 from __future__ import annotations
 
 import json

@@ -1,9 +1,5 @@
-"""Benchmark evaluation + two-store result persistence.
-
-- ``evaluate_run(cfg)``     -> {test_name: classification_report_dict}
-- ``save_run_results(...)`` -> updates results/models_db.json, writes
-  results/<name>.json and results/<name>.xlsx
-- ``evaluate_and_save(cfg)`` -> convenience = the two combined
+"""
+Benchmark evaluation
 """
 
 from __future__ import annotations
@@ -31,11 +27,10 @@ if TYPE_CHECKING:
 
 
 def _evaluate_model_on_data(model, dataset, data_collator, use_crf: bool):
-    """Inference loop that handles plain / focal / CRF / LSTM output shapes."""
+    """Inference loop for plain / focal / CRF / LSTM output shapes."""
     model.eval()
     device = next(model.parameters()).device
 
-    # drop anything the collator can't tensorize (stray text columns)
     valid_cols = {"input_ids", "attention_mask", "token_type_ids", "labels"}
     drop_cols = [c for c in dataset.column_names if c not in valid_cols]
     ds = dataset.remove_columns(drop_cols)
@@ -82,7 +77,7 @@ def _evaluate_model_on_data(model, dataset, data_collator, use_crf: bool):
 
 
 def evaluate_run(cfg: "RunConfig") -> dict:
-    """Load ``models/<cfg.name>/`` and score it against every benchmark."""
+    """Load ``models/<cfg.name>/`` and score it"""
     run_dir = os.path.join(MODEL_DIR, cfg.name)
     if not os.path.exists(run_dir):
         raise FileNotFoundError(f"no saved model at {run_dir} for run '{cfg.name}'")
@@ -105,15 +100,7 @@ def evaluate_run(cfg: "RunConfig") -> dict:
 
 
 def _write_run_excel(run_name: str, reports: dict, out_path: str) -> None:
-    """Per-run .xlsx: Summary sheet (one row) + Per-Class Details sheet.
-
-    Same multi-index shape the legacy notebook produced, generalized to N tests.
-    """
     test_names = list(reports.keys())
-
-    # Summary shows BOTH macro and weighted so O-class domination can't hide
-    # real differences between methods. Macro F1 treats all 28 classes
-    # equally; weighted F1 is ~80%-dominated by the "O" class.
     sum_row = {"Model": run_name}
     labels: set[str] = set()
     for test_name in test_names:
@@ -161,8 +148,6 @@ def _write_run_excel(run_name: str, reports: dict, out_path: str) -> None:
 
 def save_run_results(cfg: "RunConfig", reports: dict) -> None:
     os.makedirs(RESULTS_DIR, exist_ok=True)
-
-    # 1) update the central BERT-side DB
     if os.path.exists(MODELS_DB_PATH):
         with open(MODELS_DB_PATH, "r", encoding="utf-8") as f:
             db = json.load(f)
@@ -180,13 +165,13 @@ def save_run_results(cfg: "RunConfig", reports: dict) -> None:
         json.dump(db, f, indent=2, ensure_ascii=False)
     print(f"Updated {MODELS_DB_PATH} (entry: {cfg.name})")
 
-    # 2) per-run JSON snapshot
+    # per-run JSON
     per_run_json = os.path.join(RESULTS_DIR, f"{cfg.name}.json")
     with open(per_run_json, "w", encoding="utf-8") as f:
         json.dump(entry, f, indent=2, ensure_ascii=False)
     print(f"Wrote {per_run_json}")
 
-    # 3) per-run Excel (Summary + Per-Class Details)
+    # per-run Excel
     per_run_xlsx = os.path.join(RESULTS_DIR, f"{cfg.name}.xlsx")
     _write_run_excel(cfg.name, reports, per_run_xlsx)
     print(f"Wrote {per_run_xlsx}")

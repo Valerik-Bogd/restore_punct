@@ -1,7 +1,5 @@
-"""Environment detection + shared paths / batch sizes.
-
-Colab vs. local is auto-detected. All downstream modules import from here
-instead of hard-coding paths or batch sizes.
+"""
+Env detection (Colab vs. local)
 """
 
 from __future__ import annotations
@@ -10,7 +8,7 @@ import os
 import sys
 
 try:
-    import google.colab  # noqa: F401
+    import google.colab
     IS_COLAB = True
 except ImportError:
     IS_COLAB = False
@@ -25,8 +23,6 @@ if IS_COLAB:
     NUM_WORKERS = 2
     GRAD_ACCUM = 2
 else:
-    # When this file is imported from notebooks/ we still want ROOT_DIR to
-    # point to the project root (one level up from pipeline/).
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     # RTX 5060 (8 GB VRAM)
     BATCH_SIZE = 4
