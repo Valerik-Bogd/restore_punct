@@ -100,6 +100,7 @@ def build_trainer(cfg: "RunConfig", model, train_ds, val_ds, tokenizer):
         report_to="none",
         seed=cfg.seed,
         remove_unused_columns=False,
+        warmup_ratio=cfg.warmup_ratio,
     )
 
     if loss == "crf":

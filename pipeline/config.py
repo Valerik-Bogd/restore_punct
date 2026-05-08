@@ -62,6 +62,10 @@ class RunConfig:
     # back to O); intended for CE/focal paths.
     o_mask_prob: float = 0.0
 
+    # LR schedule: fraction of total steps used for linear warmup.
+    # 0.0 = no warmup (backward-compatible default).
+    warmup_ratio: float = 0.0
+
     # free-form metadata (e.g. {"stage": "1-baseline-loss-sweep"})
     tags: dict = field(default_factory=dict)
 

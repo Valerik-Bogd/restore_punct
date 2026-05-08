@@ -1,0 +1,7 @@
+Rank,Punctuation Sign,Count,Type
+1,",",906621,Most Frequent
+2,.,614422,Most Frequent
+3,"""",290361,Most Frequent
+1,"""!",70,Rarest
+2,"""?",256,Rarest
+3,! -,334,Rarest

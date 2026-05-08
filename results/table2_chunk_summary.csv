@@ -1,0 +1,4 @@
+Dataset,Chunks,Total Tokens,Avg Tokens/Chunk
+train_all.json,61243,11487730,187.58
+train_all_synthetic.json,66197,11815923,178.50
+Difference (synthetic added),4954,328193,-
